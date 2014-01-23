@@ -14,7 +14,7 @@
         android:layout_height="wrap_content"
         android:layout_centerHorizontal="true"
         android:layout_centerVertical="true"
-        android:text="@string/hello_world"
+        android:text=""
         android:textColor="#ffffff"
          android:textSize="20sp" 
         android:typeface="normal" />

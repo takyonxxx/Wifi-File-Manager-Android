@@ -33,7 +33,7 @@ public class Filemanager extends Activity {
 		Desctxt=(TextView) findViewById(R.id.txt_desc);
 		BtnStart=(Button) findViewById(R.id.btn_start);
 		BtnStart.setText("Start");		
-		
+		Statustxt.setText("WIFI FILE MANAGER by Türkay Biliyor.");	
 		BtnStart.setOnClickListener(new View.OnClickListener() {					
 			@Override
 			public void onClick(View arg0) {					
@@ -58,7 +58,9 @@ public class Filemanager extends Activity {
 					}
 				else{ 
 					server.stop();
-					finish();	
+					Statustxt.setText("WIFI FILE MANAGER by Türkay Biliyor.");	
+					Desctxt.setText("");
+					BtnStart.setText("Start");	
 			        }
 				}
 		    });
@@ -71,16 +73,7 @@ public class Filemanager extends Activity {
 	}
 	@Override
 	protected void onResume() {
-		super.onResume();		
-		Statustxt.setText("http://"+getWifiApIpAddress() + ":" + PORT);	
-		Desctxt.setText("Enter the adress in your web browser");
-		try {	
-			server = new HttpServer(PORT);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}			
-		BtnStart.setText("Stop");				
+		super.onResume();				
 	}
 	public String getWifiApIpAddress() {
 	    try {

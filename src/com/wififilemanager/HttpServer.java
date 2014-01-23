@@ -11,9 +11,11 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -28,7 +30,7 @@ import android.util.Log;
 
 
 public class HttpServer {	
-	
+	public String test;
 	public Response serve( String uri, String method, Properties header, Properties parms, Properties files )
 	{
 		//System.out.println( method + " '" + uri + "' " );
@@ -264,20 +266,18 @@ public class HttpServer {
 
 				//We now read all the body and write it to f
 				buf = new byte[512];
-				while ( rlen >= 0 && size > 0 )
-				{
-					rlen = is.read(buf, 0, 512);
-					size -= rlen;
-					f.write(buf, 0, rlen);
-					
-				}
-				//We get the raw body as a byte []
-				byte [] fbuf = f.toByteArray();
-				//We also create a BufferedReader for easily reading it as string.
-				ByteArrayInputStream bin = new ByteArrayInputStream(fbuf);
-				BufferedReader in = new BufferedReader( new InputStreamReader(bin));
-
-
+                while ( rlen >= 0 && size > 0 )
+                {
+                        rlen = is.read(buf, 0, 512);
+                        size -= rlen;
+                        if (rlen > 0)
+                                f.write(buf, 0, rlen);
+                }
+                // Get the raw body as a byte []
+                byte [] fbuf = f.toByteArray();
+                // Create a BufferedReader for easily reading it as string.
+                ByteArrayInputStream bin = new ByteArrayInputStream(fbuf);
+                BufferedReader in = new BufferedReader( new InputStreamReader(bin));
 				// If the method is POST, there may be parameters
 				// in data section, too, read it:
 				if ( method.equalsIgnoreCase( "POST" ))
@@ -292,33 +292,29 @@ public class HttpServer {
 					if (contentType.equalsIgnoreCase("multipart/form-data")){
 						//Content type is  multipart/form-data
 						if ( !st.hasMoreTokens())
-                                                        sendError( HTTP_BADREQUEST, "BAD REQUEST: Content type is multipart/form-data but boundary missing. Usage: GET /example/file.html" );
-                                                String boundaryExp = st.nextToken();
-                                                st = new StringTokenizer( boundaryExp , "=" );
-                                                if (st.countTokens() != 2)
-                                                        sendError( HTTP_BADREQUEST, "BAD REQUEST: Content type is multipart/form-data but boundary syntax error. Usage: GET /example/file.html" );
-                                                st.nextToken();
-                                                String boundary = st.nextToken();
+                        sendError( HTTP_BADREQUEST, "BAD REQUEST: Content type is multipart/form-data but boundary missing. Usage: GET /example/file.html" );
+                        String boundaryExp = st.nextToken();
+                        st = new StringTokenizer( boundaryExp , "=" );
+                        if (st.countTokens() != 2)
+                                sendError( HTTP_BADREQUEST, "BAD REQUEST: Content type is multipart/form-data but boundary syntax error. Usage: GET /example/file.html" );
+                        st.nextToken();
+                        String boundary = st.nextToken();
 
-                                                decodeMultipartData(boundary, fbuf, in, parms, files,uri);
+                        decodeMultipartData(boundary, fbuf, in, parms, files,uri);
 						
 					}
 					else {
-						//content type is application/x-www-form-urlencoded	
-						String postLine = "";
-						char pbuf[] = new char[512];
-						int read = in.read(pbuf);
-						while ( read >= 0 && !postLine.endsWith("\r\n") )
-						{
-							postLine += String.valueOf(pbuf, 0, read);
-							if ( read > 0 )
-								read = in.read(pbuf);
-						}
-						postLine = postLine.trim();
-						decodeParms( postLine, parms );
-
-						System.out.println(postLine);
-						parms.list(System.err);
+						// Handle application/x-www-form-urlencoded
+                        String postLine = "";
+                        char pbuf[] = new char[512];
+                        int read = in.read(pbuf);
+                        while ( read >= 0 && !postLine.endsWith("\r\n") )
+                        {
+                                postLine += String.valueOf(pbuf, 0, read);
+                                read = in.read(pbuf);
+                        }
+                        postLine = postLine.trim();
+                        decodeParms( postLine, parms );
 					}
 				}
 
@@ -368,11 +364,13 @@ public class HttpServer {
 					String uri = st.nextToken();
 					if(uri.contains("?delete=Delete") || uri.contains("?renamefile="))
 	                {                                	
-	                	String data = uri;	                	
+	                	String data = uri;	
+	                	
 	                	if(uri.contains("?delete=Delete")){
 		                	data = data.substring(data.indexOf("?delete=Delete") + "?delete=Delete".length(), data.length());                                	
 		                	int folderend=uri.indexOf("?delete=Delete");
 		                	folder=uri.substring(0, folderend);  
+		                	
 		                	if(uri.contains("&"))
 		                    {
 			                    String[] items = data.split("&");	                	
@@ -380,15 +378,21 @@ public class HttpServer {
 			                    {
 			                    	if(item.contains("chkfolder="))
 			                        {
-			                    		item=item.replace("chkfolder=", "");
-			                    		File file = new File(folder+item);
-			    	                    deleteDirectory(file);	    	                      
+			                    		item=item.replace("chkfolder=", "");			                    				                    		
+		                    			deleteDirectory(new File(folder+item));		                    			
+			                    		
+			                        }else if(item.contains("chkallfile=on"))
+			                        {
+			                        	item=item.replace("chkallfile=on", "");	
+			                        	deleteFilesInDirectory(new File(folder+item));			                    			
 			                        }else if(item.contains("chkfile="))
 			                        {
 			                        item=item.replace("chkfile=", "");
-				                    	File file = new File(folder+item);
-				                    	file.delete();
+			                        item=item.replace("%3A", ":");
+				                    	File file = new File(folder+item);				                    	
+				                    	file.delete();				                    	
 			                        }
+			                    	
 			                    }  
 		                    }             
 	                	}else if(uri.contains("?renamefile=")){
@@ -515,7 +519,7 @@ public class HttpServer {
 								sendError( HTTP_BADREQUEST, "BAD REQUEST: Content type is multipart/form-data but no content-disposition info found. Usage: GET /example/file.html" );
 							}
 							StringTokenizer st = new StringTokenizer( contentDisposition , "; " );
-							Properties disposition = new Properties();
+							Properties disposition = new Properties();							
 							while ( st.hasMoreTokens())
 							{
 								String token = st.nextToken();
@@ -546,7 +550,7 @@ public class HttpServer {
 								if (boundarycount> bpositions.length)
 									sendError( HTTP_INTERNALERROR, "Error processing request" );
 								int offset = stripMultipartHeaders(fbuf, bpositions[boundarycount-2]);
-								value = disposition.getProperty("filename");
+								value = disposition.getProperty("filename");								
 								value = value.substring(1,value.length()-1);	
 								String path =saveFile(fbuf, offset, bpositions[boundarycount-1]-offset-4,value,Uri);								
 								files.put(pname, path);													
@@ -598,7 +602,7 @@ public class HttpServer {
 		}
 		
 		private String saveFile(byte[] b, int offset, int len,String filename,String Uri)
-		{
+		{			
 			String path = "";
 			if (len > 0)
 			{				
@@ -641,22 +645,23 @@ public class HttpServer {
         	path.mkdir();
         }       
     }
-	
-	public boolean deleteDirectory(File path) {
+	public boolean deleteFilesInDirectory(File path) {
         // TODO Auto-generated method stub
-        if( path.exists() ) {
-            File[] files = path.listFiles();
-            for(int i=0; i<files.length; i++) {
-            if(files[i].isDirectory()) {
-                    deleteDirectory(files[i]);
-                }
-                else {
-                    files[i].delete();
-                }
+        if( path.exists() ) {        	
+            File[] files = path.listFiles();            
+            for(int i=0; i<files.length; i++) {            	
+                 files[i].delete();            	
             }
         }
-        return(path.delete());
+        return(true);
     }
+	
+	public boolean deleteDirectory(File fileOrDirectory) {
+	    if (fileOrDirectory.isDirectory())
+	        for (File child : fileOrDirectory.listFiles())
+	        	deleteDirectory(child);
+	    return fileOrDirectory.delete();
+	}
 		private String decodePercent( String str ) throws InterruptedException
 		{
 			try
@@ -798,9 +803,12 @@ public class HttpServer {
 				newUri += "%20";
 			else
 			{
-				newUri += URLEncoder.encode( tok );
+				//newUri += URLEncoder.encode( tok );
 				// For Java 1.4 you'll want to use this instead:
-					// try { newUri += URLEncoder.encode( tok, "UTF-8" ); } catch ( UnsupportedEncodingException uee )
+					try {
+						//newUri += URLEncoder.encode( tok, "UTF-8" );	
+						newUri +=URLDecoder.decode(tok, "UTF-8");
+					} catch ( UnsupportedEncodingException uee ){};
 			}
 		}
 		return newUri;
@@ -812,11 +820,7 @@ public class HttpServer {
 	// ==================================================
 	// File server code
 	// ==================================================
-
-	/**
-	 * Serves file from homeDir and its' subdirectories (only).
-	 * Uses only URI, ignores all headers and HTTP parameters.
-	 */
+    
 	public Response serveFile( String uri, Properties header, File homeDir,
 			boolean allowDirectoryListing )
 	{
@@ -925,12 +929,12 @@ public class HttpServer {
 				               int slash = u.lastIndexOf( '/' );
 				               if ( slash >= 0 && slash  < u.length())
 				            	   msg += "<tr bgcolor=\"#008000\" align=\"left\">";	
-				                   msg += "<td colspan=\"4\"><b><a href=\"" + uri.substring(0, slash+1) + "\">";
+				                   msg += "<td colspan=\"4\"><b><a href=\"" + uri.substring(0, slash+1) +"\">";
 				                   msg +="<font size=\"4\" face=\"verdana\" color=\"#FFFF00\">Back</font></a>&nbsp;&nbsp;&nbsp;"; 		                
 				                   msg +="<font size=\"4\" face=\"verdana\" color=\"white\">";
 				                   msg +="Directory: </font>";
 				                   msg +="<font size=\"4\" face=\"verdana\" color=\"white\">";
-				                   msg += uri + "</font></b></td>"; 
+				                   msg += uri + " -- "+ test+"</font></b></td>"; 
 				                   msg +="</tr>";
 				       }
 				       msg +="<form method=\"get\"><tr bgcolor=\"#FFF000\" align=\"left\">";				      
