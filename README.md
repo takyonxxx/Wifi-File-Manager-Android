@@ -1,4 +1,4 @@
-wififilemanager
+Wifi-File-Manager-Android
 ===============
 
 Wifi File Manager android:
