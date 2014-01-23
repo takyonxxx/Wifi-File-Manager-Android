@@ -9,3 +9,5 @@ Just press start button and write ip adress in your Browser to manage files...
 
 Google Store:
 https://play.google.com/store/apps/details?id=com.wififilemanager
+
+GNU GENERAL PUBLIC LICENSE Version 3
